@@ -187,14 +187,36 @@ asyncio.run(main())
 
 ### 1. Install
 
-Requires Python 3.10+ and [uv](https://github.com/astral-sh/uv).
+```bash
+pip install nodriver-proxy-mcp
+```
+
+Or from source:
 
 ```bash
 git clone https://github.com/BobongKu/nodriver-proxy-mcp.git
 cd nodriver-proxy-mcp
+pip install .
 ```
 
 ### 2. Add to your AI agent
+
+**Claude Desktop** (`claude_desktop_config.json`):
+
+| OS | Path |
+|----|------|
+| Windows | `%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude\claude_desktop_config.json` |
+| macOS | `~/Library/Application Support/Claude/claude_desktop_config.json` |
+
+```json
+{
+  "mcpServers": {
+    "nodriver-proxy-mcp": {
+      "command": "nodriver-proxy-mcp"
+    }
+  }
+}
+```
 
 **Claude Code** (`settings.json` or `.claude/settings.local.json`):
 
@@ -202,8 +224,7 @@ cd nodriver-proxy-mcp
 {
   "mcpServers": {
     "nodriver-proxy-mcp": {
-      "command": "uv",
-      "args": ["run", "--directory", "/path/to/nodriver-proxy-mcp", "nodriver-proxy-mcp"]
+      "command": "nodriver-proxy-mcp"
     }
   }
 }
@@ -215,14 +236,11 @@ cd nodriver-proxy-mcp
 {
   "mcpServers": {
     "nodriver-proxy-mcp": {
-      "command": "uv",
-      "args": ["run", "--directory", "/path/to/nodriver-proxy-mcp", "nodriver-proxy-mcp"]
+      "command": "nodriver-proxy-mcp"
     }
   }
 }
 ```
-
-> Avoid `uvx` — it creates an ephemeral environment that can't install runtime dependencies for code-mode.
 
 ### 3. Use it
 

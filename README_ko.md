@@ -187,14 +187,36 @@ asyncio.run(main())
 
 ### 1. 설치
 
-Python 3.10 이상, [uv](https://github.com/astral-sh/uv) 필요.
+```bash
+pip install nodriver-proxy-mcp
+```
+
+또는 소스에서:
 
 ```bash
 git clone https://github.com/BobongKu/nodriver-proxy-mcp.git
 cd nodriver-proxy-mcp
+pip install .
 ```
 
 ### 2. AI 에이전트에 등록
+
+**Claude Desktop** (`claude_desktop_config.json`):
+
+| OS | 경로 |
+|----|------|
+| Windows | `%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude\claude_desktop_config.json` |
+| macOS | `~/Library/Application Support/Claude/claude_desktop_config.json` |
+
+```json
+{
+  "mcpServers": {
+    "nodriver-proxy-mcp": {
+      "command": "nodriver-proxy-mcp"
+    }
+  }
+}
+```
 
 **Claude Code** (`settings.json` 또는 `.claude/settings.local.json`):
 
@@ -202,8 +224,7 @@ cd nodriver-proxy-mcp
 {
   "mcpServers": {
     "nodriver-proxy-mcp": {
-      "command": "uv",
-      "args": ["run", "--directory", "/path/to/nodriver-proxy-mcp", "nodriver-proxy-mcp"]
+      "command": "nodriver-proxy-mcp"
     }
   }
 }
@@ -215,14 +236,11 @@ cd nodriver-proxy-mcp
 {
   "mcpServers": {
     "nodriver-proxy-mcp": {
-      "command": "uv",
-      "args": ["run", "--directory", "/path/to/nodriver-proxy-mcp", "nodriver-proxy-mcp"]
+      "command": "nodriver-proxy-mcp"
     }
   }
 }
 ```
-
-> `uvx`는 사용하지 마세요 — 코드 모드의 런타임 의존성 설치가 안 됩니다.
 
 ### 3. 사용
 
