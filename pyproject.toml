@@ -1,0 +1,26 @@
+[project]
+name = "nodriver-proxy-mcp"
+version = "4.0.0"
+description = "Unified MCP Server for Web Security — 39 tools for autonomous pentesting"
+requires-python = ">=3.10, <3.14"
+dependencies = [
+    "mcp[cli]>=1.0.0",
+    "pydantic>=2.0.0",
+    "httpx>=0.27.0",
+    "mitmproxy>=10.0.0",
+    "nodriver>=0.38.0",
+    "beautifulsoup4>=4.12.0",
+    "lxml>=5.0.0",
+    "jsonpath-ng>=1.6.0",
+    "curl-cffi>=0.7.0",
+]
+
+[project.scripts]
+nodriver-proxy-mcp = "nodriver_proxy_mcp.main:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/nodriver_proxy_mcp"]

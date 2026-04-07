@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc -l /c/Users/jhbgj/Desktop/nodriver-proxy-mcp/.claude/worktrees/flamboyant-grothendieck/src/nodriver_proxy_mcp/proxy/*.py /c/Users/jhbgj/Desktop/nodriver-proxy-mcp/.claude/worktrees/flamboyant-grothendieck/src/nodriver_proxy_mcp/browser/*.py /c/Users/jhbgj/Desktop/nodriver-proxy-mcp/.claude/worktrees/flamboyant-grothendieck/src/nodriver_proxy_mcp/codemode/*.py)",
+      "Bash(python -c \"from nodriver import cdp; print\\(dir\\(cdp.fetch\\)\\)\")",
+      "Bash(pip show:*)",
+      "Bash(uv pip:*)"
+    ]
+  },
+  "mcpServers": {
+    "nodriver-proxy-mcp": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "C:\\Users\\jhbgj\\Desktop\\nodriver-proxy-mcp\\.claude\\worktrees\\flamboyant-grothendieck",
+        "nodriver-proxy-mcp"
+      ]
+    }
+  }
+}
