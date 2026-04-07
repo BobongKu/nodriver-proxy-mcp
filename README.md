@@ -203,11 +203,6 @@ pip install .
 
 **Claude Desktop** (`claude_desktop_config.json`):
 
-| OS | Path |
-|----|------|
-| Windows | `%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude\claude_desktop_config.json` |
-| macOS | `~/Library/Application Support/Claude/claude_desktop_config.json` |
-
 ```json
 {
   "mcpServers": {
