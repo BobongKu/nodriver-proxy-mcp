@@ -201,31 +201,7 @@ pip install .
 
 ### 2. AI 에이전트에 등록
 
-**Claude Desktop** (`claude_desktop_config.json`):
-
-```json
-{
-  "mcpServers": {
-    "nodriver-proxy-mcp": {
-      "command": "nodriver-proxy-mcp"
-    }
-  }
-}
-```
-
-**Claude Code** (`settings.json` 또는 `.claude/settings.local.json`):
-
-```json
-{
-  "mcpServers": {
-    "nodriver-proxy-mcp": {
-      "command": "nodriver-proxy-mcp"
-    }
-  }
-}
-```
-
-**Cursor / 기타 MCP 클라이언트** (`mcp_config.json`):
+**MCP 클라이언트** (`mcp_config.json`):
 
 ```json
 {
@@ -316,77 +292,55 @@ manage_proxy(action="start", upstream="localhost:8080")
 
 ---
 
-## 워크플로우
+## 워크플로우 — Code-mode IDOR 자동 스윕
 
-### 정찰 — 브라우징, 캡처, 분석
-```
-manage_proxy(action="start")
-set_scope(allowed_domains=["target.com", "api.target.com"])
-browser_open(proxy_port=8082)
-browser_go(url="https://target.com")
+```mermaid
+sequenceDiagram
+    participant Agent as AI Agent
+    participant MCP as MCP Server
+    participant Proxy as mitmproxy
+    participant Browser as Chrome (nodriver)
+    participant Code as Code-mode (NdpSDK)
+    participant Target as Target
 
-# 프록시에 안 보이는 클라이언트 데이터
-browser_get_dom()                    # 폼, 히든 인풋, CSRF 토큰
-browser_get_storage()                # localStorage / sessionStorage 토큰
-browser_get_console()                # 디버그 메시지, 내부 URL
+    Note over Agent,Target: Phase 1 - 셋업
+    Agent->>MCP: manage_proxy(start)
+    MCP->>Proxy: launch :8082
+    Agent->>MCP: browser_open(proxy_port=8082)
+    MCP->>Browser: launch Chrome via proxy
 
-# 트래픽 분석
-get_traffic_summary()                # 캡처된 모든 요청
-detect_auth_pattern()                # JWT, 쿠키, API 키
-```
+    Note over Agent,Target: Phase 2 - 정찰
+    Agent->>MCP: browser_go(target.com)
+    Browser->>Proxy: all traffic captured
+    Proxy->>Target: GET /login, /api/*, /mypage...
+    Target-->>Browser: responses
+    Agent->>MCP: get_traffic_summary()
+    MCP-->>Agent: 47 flows captured
+    Agent->>MCP: detect_auth_pattern()
+    MCP-->>Agent: Bearer token detected
 
-### IDOR — 두 세션, 토큰 교체
-```
-browser_open(session_name="victim", proxy_port=8082)
-browser_go(url="https://target.com/login", session_name="victim")
-# ... victim으로 로그인 ...
+    Note over Agent,Target: Phase 3 - 공격 표면 분석
+    Agent->>MCP: search_traffic("/api/")
+    MCP-->>Agent: /api/users/me, /api/orders/1042, /api/profile/317
+    Agent->>MCP: extract_session_variable(token)
+    MCP-->>Agent: saved as my_token
+    Note right of Agent: ID 파라미터가 있는 엔드포인트 3개 발견
 
-browser_open(session_name="attacker", proxy_port=8082)
-browser_go(url="https://target.com/login", session_name="attacker")
-# ... attacker로 로그인 ...
+    Note over Agent,Target: Phase 4 - Code-mode IDOR 스윕
+    Agent->>MCP: execute_security_code(script)
+    MCP->>Code: fork + sandbox
 
-extract_session_variable(flow_id="...", regex='token":"([^"]+)', name="victim_token")
-replay_flow(flow_id="...", replacements=[{"regex": "victim_token_value", "replacement": "attacker_token_value"}])
-```
+    loop 엔드포인트별 ID 1~100 순회
+        Code->>Target: GET /api/users/[id] + my_token
+        Target-->>Code: 200 with other user data / 403
+        Code->>Target: GET /api/orders/[id] + my_token
+        Target-->>Code: 200 with other order data / 403
+        Code->>Target: GET /api/profile/[id] + my_token
+        Target-->>Code: 200 with other profile / 403
+    end
 
-### XSS — 페이로드 주입 + alert 감지
-```
-browser_go(url="https://target.com/search?q=<script>alert(document.domain)</script>")
-browser_click(selector="#search-btn")
-# XSS가 발동하면 alert() 다이얼로그 메시지가 click 결과에 반환됨
-browser_get_console()                # CSP 위반 확인
-```
-
-### 비즈니스 로직 — 가격 조작, 쿠폰 재사용, 워크플로우 우회
-```
-# 정상 결제 플로우 캡처
-browser_go(url="https://target.com/checkout")
-browser_click(selector="#place-order")
-
-# 트래픽에서 가격 파라미터 찾기
-search_traffic(query="price")
-inspect_flow(flow_id="...")
-
-# 가격 변조 / 쿠폰 재사용 / 단계 건너뛰기로 리플레이
-replay_flow(flow_id="...", replacements=[{"regex": '"price":99.99', "replacement": '"price":0.01'}])
-
-# 다단계 로직 악용은 코드 모드로
-execute_security_code(script_content="""
-# 같은 쿠폰을 50번 적용해서 할인이 중첩되는지 확인
-for i in range(50):
-    resp = await sdk.replay_flow(coupon_flow_id)
-    print(f"Attempt {i}: status={resp['status_code']}")
-""", approved=True)
-```
-
-### API 퍼징 — 자동 이상 탐지
-```
-fuzz_endpoint(
-    flow_id="abc",
-    payloads=["' OR 1=1--", "<script>alert(1)</script>", "../../../etc/passwd"],
-    target_pattern="FUZZ"
-)
-# 베이스라인 측정 후 상태코드 / 길이 / 지연시간 이상 탐지
+    Code-->>MCP: results summary
+    MCP-->>Agent: /api/users: 100/100 accessible, /api/orders: 38/100, /api/profile: 0/100
 ```
 
 

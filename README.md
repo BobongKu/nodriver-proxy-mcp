@@ -201,31 +201,7 @@ pip install .
 
 ### 2. Add to your AI agent
 
-**Claude Desktop** (`claude_desktop_config.json`):
-
-```json
-{
-  "mcpServers": {
-    "nodriver-proxy-mcp": {
-      "command": "nodriver-proxy-mcp"
-    }
-  }
-}
-```
-
-**Claude Code** (`settings.json` or `.claude/settings.local.json`):
-
-```json
-{
-  "mcpServers": {
-    "nodriver-proxy-mcp": {
-      "command": "nodriver-proxy-mcp"
-    }
-  }
-}
-```
-
-**Cursor / other MCP clients** (`mcp_config.json`):
+**MCP clients** (`mcp_config.json`):
 
 ```json
 {
@@ -316,77 +292,55 @@ Both tools see the same traffic. The AI automates; you analyze in Burp when you 
 
 ---
 
-## Workflows
+## Workflow — IDOR sweep with code-mode
 
-### Recon — browse, capture, analyze
-```
-manage_proxy(action="start")
-set_scope(allowed_domains=["target.com", "api.target.com"])
-browser_open(proxy_port=8082)
-browser_go(url="https://target.com")
+```mermaid
+sequenceDiagram
+    participant Agent as AI Agent
+    participant MCP as MCP Server
+    participant Proxy as mitmproxy
+    participant Browser as Chrome (nodriver)
+    participant Code as Code-mode (NdpSDK)
+    participant Target as Target
 
-# Client-side data invisible to proxy
-browser_get_dom()                    # forms, hidden inputs, CSRF tokens
-browser_get_storage()                # localStorage / sessionStorage tokens
-browser_get_console()                # debug messages, internal URLs
+    Note over Agent,Target: Phase 1 - Setup
+    Agent->>MCP: manage_proxy(start)
+    MCP->>Proxy: launch :8082
+    Agent->>MCP: browser_open(proxy_port=8082)
+    MCP->>Browser: launch Chrome via proxy
 
-# Traffic analysis
-get_traffic_summary()                # all captured requests
-detect_auth_pattern()                # JWT, cookies, API keys
-```
+    Note over Agent,Target: Phase 2 - Recon
+    Agent->>MCP: browser_go(target.com)
+    Browser->>Proxy: all traffic captured
+    Proxy->>Target: GET /login, /api/*, /mypage...
+    Target-->>Browser: responses
+    Agent->>MCP: get_traffic_summary()
+    MCP-->>Agent: 47 flows captured
+    Agent->>MCP: detect_auth_pattern()
+    MCP-->>Agent: Bearer token detected
 
-### IDOR — two sessions, token swap
-```
-browser_open(session_name="victim", proxy_port=8082)
-browser_go(url="https://target.com/login", session_name="victim")
-# ... login as victim ...
+    Note over Agent,Target: Phase 3 - Attack Surface Mapping
+    Agent->>MCP: search_traffic("/api/")
+    MCP-->>Agent: /api/users/me, /api/orders/1042, /api/profile/317
+    Agent->>MCP: extract_session_variable(token)
+    MCP-->>Agent: saved as my_token
+    Note right of Agent: Found 3 endpoints with ID params
 
-browser_open(session_name="attacker", proxy_port=8082)
-browser_go(url="https://target.com/login", session_name="attacker")
-# ... login as attacker ...
+    Note over Agent,Target: Phase 4 - Code-mode IDOR Sweep
+    Agent->>MCP: execute_security_code(script)
+    MCP->>Code: fork + sandbox
 
-extract_session_variable(flow_id="...", regex='token":"([^"]+)', name="victim_token")
-replay_flow(flow_id="...", replacements=[{"regex": "victim_token_value", "replacement": "attacker_token_value"}])
-```
+    loop every endpoint x ID 1~100
+        Code->>Target: GET /api/users/[id] + my_token
+        Target-->>Code: 200 with other user data / 403
+        Code->>Target: GET /api/orders/[id] + my_token
+        Target-->>Code: 200 with other order data / 403
+        Code->>Target: GET /api/profile/[id] + my_token
+        Target-->>Code: 200 with other profile / 403
+    end
 
-### XSS — payload injection + alert detection
-```
-browser_go(url="https://target.com/search?q=<script>alert(document.domain)</script>")
-browser_click(selector="#search-btn")
-# If XSS fires, the alert() dialog message is returned in the click result
-browser_get_console()                # CSP violations
-```
-
-### Business logic — price manipulation, coupon reuse, workflow bypass
-```
-# Capture a normal checkout flow
-browser_go(url="https://target.com/checkout")
-browser_click(selector="#place-order")
-
-# Find the price parameter in traffic
-search_traffic(query="price")
-inspect_flow(flow_id="...")
-
-# Replay with modified price / reused coupon code / skipped step
-replay_flow(flow_id="...", replacements=[{"regex": '"price":99.99', "replacement": '"price":0.01'}])
-
-# Or use code-mode for multi-step logic abuse
-execute_security_code(script_content="""
-# Apply same coupon 50 times, check if discount stacks
-for i in range(50):
-    resp = await sdk.replay_flow(coupon_flow_id)
-    print(f"Attempt {i}: status={resp['status_code']}")
-""", approved=True)
-```
-
-### API fuzzing — automated anomaly detection
-```
-fuzz_endpoint(
-    flow_id="abc",
-    payloads=["' OR 1=1--", "<script>alert(1)</script>", "../../../etc/passwd"],
-    target_pattern="FUZZ"
-)
-# Measures baseline, flags status code / length / latency anomalies
+    Code-->>MCP: results summary
+    MCP-->>Agent: /api/users: 100/100 accessible, /api/orders: 38/100, /api/profile: 0/100
 ```
 
 
