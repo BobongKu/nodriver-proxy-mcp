@@ -1,6 +1,6 @@
 [project]
 name = "nodriver-proxy-mcp"
-version = "4.0.1"
+version = "1.0.0"
 description = "Unified MCP Server for Web Security — 39 tools for autonomous pentesting"
 readme = "README.md"
 license = {text = "MIT"}
