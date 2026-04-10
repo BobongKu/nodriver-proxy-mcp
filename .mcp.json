@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "nodriver-proxy-mcp": {
+      "command": "python",
+      "args": ["-m", "nodriver_proxy_mcp.main"],
+      "cwd": "C:/Users/jhbgj/Desktop/nodriver-proxy-mcp/src"
+    }
+  }
+}

@@ -236,7 +236,7 @@ async def run_in_codemode(script_content: str, timeout: int = 300, bypass_proxy:
         if dependencies:
             uv_path = shutil.which("uv")
             if uv_path:
-                install_cmd = [uv_path, "pip", "install"] + dependencies
+                install_cmd = [uv_path, "pip", "install", "--system"] + dependencies
             else:
                 install_cmd = [python_exe, "-m", "pip", "install"] + dependencies
 

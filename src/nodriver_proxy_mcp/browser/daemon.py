@@ -79,6 +79,10 @@ class BrowserDaemon:
         await self.tab.send(cdp.runtime.enable())
         self.tab.add_handler(cdp.runtime.ConsoleAPICalled, self._on_console)
 
+        # Disable cache so all requests go through the proxy
+        await self.tab.send(cdp.network.enable())
+        await self.tab.send(cdp.network.set_cache_disabled(cache_disabled=True))
+
         # Start IPC server
         self._server = await asyncio.start_server(
             self._handle_client, "127.0.0.1", self.ipc_port
